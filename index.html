@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список дел (Offline PWA)</title>
+    <link rel="stylesheet" href="https://unpkg.com/chota@latest">
+    <style>
+        body { padding: 2rem; max-width: 800px; margin: 0 auto; }
+        .task-list { list-style: none; padding: 0; }
+        .task-list li { padding: 0.5rem; border-bottom: 1px solid #eee; margin-bottom: 0.5rem; }
+    </style>
+</head>
+<body>
+    <h1>А вот и «Заметки» - наше первое оффлайн-приложение</h1>
+    <form id="task-form" class="row">
+        <input class="col-9" type="text" id="task-input" placeholder="Введите новую задачу" required>
+        <button class="col-3 button primary" type="submit">Добавить</button>
+    </form>
+    <ul id="task-list" class="task-list"></ul>
+    
+    <script src="app.js"></script>
+</body>
+</html>
