@@ -43,7 +43,6 @@ self.addEventListener('fetch', event => {
         event.respondWith(
             fetch(event.request)
                 .then(networkRes => {
-                    // Кэшируем свежий ответ
                     const resClone = networkRes.clone();
                     caches.open(DYNAMIC_CACHE_NAME).then(cache => {
                         cache.put(event.request, resClone);
@@ -51,23 +50,33 @@ self.addEventListener('fetch', event => {
                     return networkRes;
                 })
                 .catch(() => {
-                    // Если сеть недоступна, берём из кэша (или home как fallback)
                     return caches.match(event.request)
                         .then(cached => cached || caches.match('/content/home.html'));
                 })
         );
     } else {
-        // Для статических ресурсов (App Shell) – стратегия Cache First
         event.respondWith(
             caches.match(event.request)
                 .then(cachedResponse => {
-                    // Если ресурс есть в кэше, возвращаем его. Иначе идём в сеть.
                     return cachedResponse || fetch(event.request).catch(() => {
-                        // Если в сети тоже ничего нет (офлайн), мы возвращаем заглушку, 
-                        // чтобы не падала ошибка "TypeError: Failed to convert value to 'Response'".
                         return new Response('', { status: 404, statusText: 'Offline' });
                     });
                 })
         );
     }
+});
+
+self.addEventListener('push', (event) => {
+    let data = { title: 'Новое уведомление', body: '' };
+    if (event.data) {
+        data = event.data.json();
+    }
+    const options = {
+        body: data.body,
+        icon: '/icons/favicon-128x128.png',
+        badge: '/icons/favicon-48x48.png'
+    };
+    event.waitUntil(
+        self.registration.showNotification(data.title, options)
+    );
 });
