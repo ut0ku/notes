@@ -1,3 +1,11 @@
 *.pem
 *.key
 node_modules/
+.env
+.env.local
+.env.production
+.env.development
+secrets/
+api_keys.txt
+config/keys.json
+*.log

@@ -2,7 +2,7 @@ const contentDiv = document.getElementById('app-content');
 const homeBtn = document.getElementById('home-btn');
 const aboutBtn = document.getElementById('about-btn');
 
-const socket = io('http://localhost:3001');
+const socket = io();
 
 function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -23,7 +23,7 @@ async function subscribeToPush() {
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array('BETw9OohdBNBq3XOC1rqVbL0QhH9kQuzAs4mGfXvoqcT22rEGTz5Eg80WtJWM6jokRLP-5euFB34rfbFgDJ8iBc')
         });
-        await fetch('http://localhost:3001/subscribe', {
+        await fetch('/subscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(subscription)
@@ -39,7 +39,7 @@ async function unsubscribeFromPush() {
     const registration = await navigator.serviceWorker.ready;
     const subscription = await registration.pushManager.getSubscription();
     if (subscription) {
-        await fetch('http://localhost:3001/unsubscribe', {
+        await fetch('/unsubscribe', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ endpoint: subscription.endpoint })
@@ -96,53 +96,70 @@ loadContent('home');
 function initNotes() {
     const form = document.getElementById('note-form');
     const input = document.getElementById('note-input');
+    const reminderForm = document.getElementById('reminder-form');
+    const reminderText = document.getElementById('reminder-text');
+    const reminderTime = document.getElementById('reminder-time');
     const list = document.getElementById('notes-list');
 
     function loadNotes() {
         const notes = JSON.parse(localStorage.getItem('notes') || '[]');
-        list.innerHTML = '';
-        notes.forEach((note, index) => {
-            const li = document.createElement('li');
-            li.className = 'card';
-            li.style.cssText = 'margin-bottom: 0.5rem; padding: 0.5rem; display: flex; justify-content: space-between; align-items: flex-start; word-break: break-word;';
-            
-            const span = document.createElement('span');
-            span.textContent = note.text || note;
-            span.style.marginRight = '10px';
-            
-            const deleteBtn = document.createElement('button');
-            deleteBtn.textContent = 'Удалить';
-            deleteBtn.className = 'button error';
-            deleteBtn.style.cssText = 'padding: 0.5rem 1rem; flex-shrink: 0; line-height: 1;';
-            deleteBtn.onclick = () => {
-                const currentNotes = JSON.parse(localStorage.getItem('notes') || '[]');
-                currentNotes.splice(index, 1);
-                localStorage.setItem('notes', JSON.stringify(currentNotes));
-                loadNotes();
-            };
-            
-            li.appendChild(span);
-            li.appendChild(deleteBtn);
-            list.appendChild(li);
-        });
+        list.innerHTML = notes.map(note => {
+            let reminderInfo = '';
+            if (note.reminder) {
+                const date = new Date(note.reminder);
+                reminderInfo = `<br><small>!!! Напоминание: ${date.toLocaleString()}</small>`;
+            }
+            return `<li class="card" style="margin-bottom: 0.5rem; padding: 0.5rem;">
+                        ${note.text || note}${reminderInfo}
+                    </li>`;
+        }).join('');
     }
 
-    function addNote(text, datetime) {
+    function addNote(text, reminderTimestamp = null) {
         const notes = JSON.parse(localStorage.getItem('notes') || '[]');
-        const newNote = { id: Date.now(), text, datetime: datetime || '' };
+        const newNote = { id: Date.now(), text, reminder: reminderTimestamp };
         notes.push(newNote);
         localStorage.setItem('notes', JSON.stringify(notes));
         loadNotes();
-        socket.emit('newTask', { text, timestamp: Date.now() });
+
+        if (reminderTimestamp) {
+            socket.emit('newReminder', {
+                id: newNote.id,
+                text: text,
+                reminderTime: reminderTimestamp
+            });
+        } else {
+            socket.emit('newTask', { text, timestamp: Date.now() });
+        }
     }
 
-    if(form) {
+    // Обработка обычной заметки
+    if (form) {
         form.addEventListener('submit', (e) => {
             e.preventDefault();
             const text = input.value.trim();
             if (text) {
                 addNote(text);
                 input.value = '';
+            }
+        });
+    }
+
+    // Обработка заметки с напоминанием
+    if (reminderForm) {
+        reminderForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const text = reminderText.value.trim();
+            const datetime = reminderTime.value;
+            if (text && datetime) {
+                const timestamp = new Date(datetime).getTime();
+                if (timestamp > Date.now()) {
+                    addNote(text, timestamp);
+                    reminderText.value = '';
+                    reminderTime.value = '';
+                } else {
+                    alert('Дата напоминания должна быть в будущем');
+                }
             }
         });
     }
@@ -163,6 +180,12 @@ if ('serviceWorker' in navigator) {
                 if (subscription) {
                     enableBtn.style.display = 'none';
                     disableBtn.style.display = 'inline-block';
+                    // Отправляем подписку серверу на случай, если сервер был перезапущен и потерял её из памяти
+                    fetch('/subscribe', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(subscription)
+                    }).catch(console.error);
                 }
                 
                 enableBtn.addEventListener('click', async () => {
