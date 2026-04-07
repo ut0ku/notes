@@ -168,7 +168,7 @@ function initNotes() {
 }
 
 if ('serviceWorker' in navigator) {
-    window.addEventListener('load', async () => {
+    (async () => {
         try {
             const reg = await navigator.serviceWorker.register('/sw.js');
             console.log('SW registered');
@@ -214,5 +214,5 @@ if ('serviceWorker' in navigator) {
         } catch (err) {
             console.log('SW registration failed:', err);
         }
-    });
+    })();
 }

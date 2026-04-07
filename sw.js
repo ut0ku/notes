@@ -1,5 +1,5 @@
-const CACHE_NAME = 'notes-cache-v7';
-const DYNAMIC_CACHE_NAME = 'dynamic-content-v6';
+const CACHE_NAME = 'notes-cache-v9';
+const DYNAMIC_CACHE_NAME = 'dynamic-content-v8';
 const ASSETS = [
     '/',
     '/index.html',
@@ -98,9 +98,14 @@ self.addEventListener('notificationclick', (event) => {
 
     if (action === 'snooze') {
         const reminderId = notification.data.reminderId;
+        const text = notification.body;
 
         event.waitUntil(
-            fetch(`/snooze?reminderId=${reminderId}`, { method: 'POST' })
+            fetch('/snooze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reminderId, text })
+            })
                 .then(() => notification.close())
                 .catch(err => console.error('Snooze failed:', err))
         );

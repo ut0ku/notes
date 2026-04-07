@@ -115,24 +115,26 @@ app.post('/unsubscribe', (req, res) => {
 });
 
 app.post('/snooze', (req, res) => {
-    const reminderId = parseInt(req.query.reminderId, 10);
+    // Идентификатор напоминания и его текст могут прийти в теле запроса (от Service Worker)
+    const reminderId = parseInt(req.body.reminderId || req.query.reminderId, 10);
+    const text = req.body.text || (reminders.has(reminderId) ? reminders.get(reminderId).text : 'Напоминание отложено');
 
-    if (!reminderId || !reminders.has(reminderId)) {
+    if (!reminderId) {
         return res.status(404).json({ error: 'Reminder not found' });
     }
 
-    const reminder = reminders.get(reminderId);
-
-    // Отменяем предыдущий таймер
-    clearTimeout(reminder.timeoutId);
+    // Если есть текущий таймер - отменяем его
+    if (reminders.has(reminderId)) {
+        clearTimeout(reminders.get(reminderId).timeoutId);
+    }
 
     // Устанавливаем новый через 5 минут (300 000 мс)
     const newDelay = 5 * 60 * 1000;
 
     const newTimeoutId = setTimeout(() => {
         const payload = JSON.stringify({
-            title: 'Напоминание отложено',
-            body: reminder.text,
+            title: '!!! Напоминание возвращается',
+            body: text,
             reminderId: reminderId
         });
 
@@ -145,10 +147,10 @@ app.post('/snooze', (req, res) => {
         reminders.delete(reminderId);
     }, newDelay);
 
-    // Обновляем хранилище
+    // Обновляем/создаем хранилище для перенесенного напоминания
     reminders.set(reminderId, {
         timeoutId: newTimeoutId,
-        text: reminder.text,
+        text: text,
         reminderTime: Date.now() + newDelay
     });
 
